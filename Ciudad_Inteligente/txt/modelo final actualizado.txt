@@ -1,0 +1,206 @@
+import pandas as pd
+import joblib
+import os
+from fastapi import FastAPI
+from pydantic import BaseModel
+import numpy as np
+import re # Para parsear el Markdown
+
+print("🚀 Iniciando API del Optimizador de Rutas...")
+
+# --- 1. Definir Modelos de Datos (Validación) ---
+class RutaRequest(BaseModel):
+    lat: float
+    lon: float
+
+class CoachRequest(BaseModel):
+    """
+    Define el JSON que espera el endpoint /coach
+    """
+    comuna: str
+    ubicacion_desc: str
+    causa_comun: str
+    indice_severidad: int
+
+class CoachResponse(BaseModel):
+    """
+    Define la respuesta del Coach (el plan de acción)
+    """
+    titulo: str
+    plan_de_accion: str
+    fuente: str
+    
+class RutaResponse(BaseModel):
+    riesgo_predicho: str
+    probabilidad: float
+    categoria_0_prob: float
+    categoria_1_prob: float
+    categoria_2_prob: float
+    lat_encontrada: float
+    lon_encontrada: float
+    comuna: str
+    zona: str
+    ubicacion_desc: str
+    causa_comun: str
+    frecuencia_total: int
+    indice_severidad: int
+
+# --- 2. Cargar el Modelo y los Datos (al iniciar la API) ---
+
+def cargar_kb_local(path_kb):
+    """
+    Carga la base de conocimiento local (fichas.md) en un diccionario.
+    Esto simula el "Índice" de un sistema RAG.
+    """
+    kb = {}
+    try:
+        with open(path_kb, 'r', encoding='utf-8') as f:
+            contenido = f.read()
+        
+        # Parsear el Markdown
+        fichas = re.split(r'# CAUSA: ', contenido)
+        for ficha in fichas:
+            if not ficha.strip():
+                continue
+            
+            partes = ficha.split('\n', 1) # Divide solo en la primera línea
+            llave = partes[0].strip().upper() # Ej. "IMPRUDENCIA DEL CONDUCTOR"
+            contenido_ficha = partes[1].strip()
+            
+            # Extraer la fuente
+            fuente = "Fuente no especificada"
+            if "*Fuente:*" in contenido_ficha:
+                fuente = contenido_ficha.split("*Fuente:*")[-1].strip()
+                
+            kb[llave] = (contenido_ficha, fuente)
+        
+        print(f"✅ Base de Conocimiento (RAG) cargada. {len(kb)} fichas encontradas.")
+        return kb
+
+    except Exception as e:
+        print(f"❌ ERROR CRÍTICO al cargar la Base de Conocimiento (KB): {e}")
+        return None
+
+try:
+    # Ruta al modelo entrenado
+    MODEL_PATH = os.path.join(os.path.dirname(_file_), '..', 'datos', 'motor_riesgo.joblib')
+    # Ruta al CSV maestro (para buscar datos)
+    DATA_PATH = os.path.join(os.path.dirname(_file_), '..', 'datos', 'Siniestros_Maestro_Consolidado_Hackathon.csv')
+    # Ruta a la Base de Conocimiento (RAG)
+    KB_PATH = os.path.join(os.path.dirname(_file_), '..', 'kb', 'fichas.md')
+    
+    # Cargar el pipeline de ML
+    pipeline = joblib.load(MODEL_PATH)
+    print("✅ Modelo 'motor_riesgo.joblib' cargado exitosamente.")
+    
+    # Cargar el CSV maestro
+    df_maestro = pd.read_csv(DATA_PATH)
+    print(f"✅ 'Siniestros_Maestro_Consolidado_Hackathon.csv' cargado ({len(df_maestro)} puntos).")
+    
+    # Cargar la Base de Conocimiento
+    kb_local = cargar_kb_local(KB_PATH)
+
+except FileNotFoundError:
+    print(f"❌ ERROR CRÍTICO: No se encontró el modelo o los CSV en 'datos', o 'fichas.md' en 'kb'.")
+    pipeline = None
+    df_maestro = None
+    kb_local = None
+
+# --- 3. Inicializar la App FastAPI ---
+app = FastAPI(
+    title="Optimizador de Rutas Terrestres - Hackathon Duoc UC 2025",
+    description="API para el Desafío Smart Cities: Predicción de riesgo vial y RAG."
+)
+
+# --- 4. Endpoint /predict (Motor de Riesgo) ---
+@app.post("/predict", response_model=RutaResponse)
+async def predict_risk(request: RutaRequest):
+    """
+    Recibe coordenadas (Lat, Lon) y devuelve el perfil de riesgo completo
+    del punto de siniestro más cercano.
+    """
+    if pipeline is None or df_maestro is None:
+        return {"error": "Servidor no inicializado: Modelo o Datos no encontrados."}
+
+    lat = request.lat
+    lon = request.lon
+    
+    distancias = np.sqrt((df_maestro['Latitude'] - lat)*2 + (df_maestro['Longitude'] - lon)*2)
+    idx_mas_cercano = distancias.idxmin()
+    punto_encontrado = df_maestro.loc[idx_mas_cercano]
+
+    X_pred = pd.DataFrame([punto_encontrado])
+    
+    pred_clase_num = pipeline.predict(X_pred)[0]
+    pred_probabilidades = pipeline.predict_proba(X_pred)[0]
+    
+    mapa_clases = {0: 'Esporadicos', 1: 'Comunes', 2: 'Muy Frecuentes'}
+    riesgo_predicho_str = mapa_clases.get(pred_clase_num, "Desconocido")
+    
+    response = RutaResponse(
+        riesgo_predicho=riesgo_predicho_str,
+        probabilidad=pred_probabilidades[pred_clase_num],
+        categoria_0_prob=pred_probabilidades[0],
+        categoria_1_prob=pred_probabilidades[1],
+        categoria_2_prob=pred_probabilidades[2],
+        lat_encontrada=punto_encontrado['Latitude'],
+        lon_encontrada=punto_encontrado['Longitude'],
+        comuna=punto_encontrado['COMUNA'],
+        zona=punto_encontrado['Zona'],
+        ubicacion_desc=punto_encontrado['Ubicacion_Desc'],
+        causa_comun=punto_encontrado['Causa__CON'],
+        frecuencia_total=int(punto_encontrado['Frecuencia_Total']),
+        indice_severidad=int(punto_encontrado['Indice_Severidad'])
+    )
+    return response
+
+# --- 5. Endpoint /coach (Coach RAG) ---
+@app.post("/coach", response_model=CoachResponse)
+async def get_coach_plan(request: CoachRequest):
+    """
+    Recibe el perfil de riesgo y genera un plan de acción
+    basado en la KB local (RAG).
+    """
+    if kb_local is None:
+        return {"error": "Servidor no inicializado: Base de Conocimiento (KB) no encontrada."}
+        
+    causa = request.causa_comun.upper()
+    plan = ""
+    fuente = "Fuente no especificada"
+    
+    # --- Lógica de RAG (Retrieval) ---
+    # 1. Búsqueda por Llave Exacta
+    if causa in kb_local:
+        plan, fuente = kb_local[causa]
+    
+    # 2. Búsqueda por palabra clave (fallback)
+    elif "IMPRUDENCIA" in causa:
+        plan, fuente = kb_local.get("IMPRUDENCIA DEL CONDUCTOR", ("No se encontró plan.", "N/A"))
+    elif "PEATON" in causa:
+        plan, fuente = kb_local.get("IMPRUDENCIA DEL PEATON", ("No se encontró plan.", "N/A"))
+    elif "ALCOHOL" in causa:
+        plan, fuente = kb_local.get("ALCOHOL EN CONDUCTOR", ("No se encontró plan.", "N/A"))
+    elif "DESOBEDIENCIA" in causa:
+        plan, fuente = kb_local.get("DESOBEDIENCIA A SEÑALIZACION", ("No se encontró plan.", "N/A"))
+    elif "CALZADA" in causa:
+        plan, fuente = kb_local.get("CALZADA RESBALADIZA", ("No se encontró plan.", "N/A"))
+        
+    # 3. Fallback final
+    else:
+        plan, fuente = kb_local.get("OTRO", ("No se encontró plan.", "N/A"))
+
+    # --- Lógica de Generación (Simulada) ---
+    titulo = f"Plan de Acción para: {request.ubicacion_desc} ({request.comuna})"
+    
+    # Esto simula el "Generation" del LLM, asegurando que no haya alucinaciones
+    respuesta_generada = plan
+    
+    return CoachResponse(
+        titulo=titulo,
+        plan_de_accion=respuesta_generada,
+        fuente=fuente
+    )
+
+@app.get("/")
+def read_root():
+    return {"status": "Optimizador de Rutas API - v1.0 Activa"}

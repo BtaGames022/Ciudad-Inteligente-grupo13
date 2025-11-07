@@ -1,0 +1,18 @@
+fastapi
+uvicorn
+scikit-learn
+xgboost
+joblib
+pandas
+numpy
+imbalanced-learn
+streamlit
+requests
+pydeck
+oracledb
+dotenv
+# geopandas  # opcional, solo si necesitas cruces espaciales avanzados
+
+# Nota:
+# - Versiones seleccionadas por estabilidad en Windows (Python 3.10+).
+# - Si alguna instalación falla (ej. xgboost) actualiza build tools o usa rueda precompilada.

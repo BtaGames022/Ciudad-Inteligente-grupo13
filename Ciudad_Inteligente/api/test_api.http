@@ -1,0 +1,23 @@
+### Root
+GET http://127.0.0.1:8000/
+
+### Predict (Santiago)
+POST http://127.0.0.1:8000/predict
+Content-Type: application/json
+
+{
+  "lat": -33.45,
+  "lon": -70.65
+}
+
+### Coach
+POST http://127.0.0.1:8000/coach
+Content-Type: application/json
+
+{
+  "comuna": "Santiago",
+  "ubicacion_desc": "Alameda con Ahumada",
+  "causa_comun": "IMPRUDENCIA DEL CONDUCTOR",
+  "indice_severidad": 3
+}
+

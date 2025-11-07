@@ -1,0 +1,12 @@
+hackathon_high = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.sa-santiago-1.oraclecloud.com))(connect_data=(service_name=gf0b166d8ebb2ce_hackathon_high.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+hackathon_low = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.sa-santiago-1.oraclecloud.com))(connect_data=(service_name=gf0b166d8ebb2ce_hackathon_low.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+hackathon_medium = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.sa-santiago-1.oraclecloud.com))(connect_data=(service_name=gf0b166d8ebb2ce_hackathon_medium.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+hackathon_tp = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.sa-santiago-1.oraclecloud.com))(connect_data=(service_name=gf0b166d8ebb2ce_hackathon_tp.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+hackathon_tpurgent = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.sa-santiago-1.oraclecloud.com))(connect_data=(service_name=gf0b166d8ebb2ce_hackathon_tpurgent.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))
+
+
+

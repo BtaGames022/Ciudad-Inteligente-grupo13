@@ -1,0 +1,18 @@
+# --- Dependencias del Proyecto Hackathon ---
+
+# 1. Para la API
+fastapi
+uvicorn[standard]
+
+# 2. Para el Modelo (Motor de Riesgo)
+scikit-learn
+xgboost
+joblib
+pandas
+numpy
+
+# 3. Para el Modelo (SMOTE) - Opcional si no usaste v5
+imbalanced-learn
+
+# 4. Para la App Demo (Equipo Frontend)
+streamlit

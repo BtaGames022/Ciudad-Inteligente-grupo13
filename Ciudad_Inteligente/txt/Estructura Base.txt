@@ -1,0 +1,7 @@
+Proyecto/
+├── api/
+│   └── main.py
+├── datos/
+│   ├── motor_riesgo.joblib
+│   └── Siniestros_Maestro_Consolidado_Hackathon.csv
+└── requirements.txt

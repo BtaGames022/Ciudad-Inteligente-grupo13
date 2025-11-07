@@ -1,0 +1,122 @@
+import pandas as pd
+import joblib
+import os
+from fastapi import FastAPI
+from pydantic import BaseModel
+import numpy as np
+
+print("🚀 Iniciando API del Optimizador de Rutas...")
+
+# --- 1. Definir Modelos de Datos (Validación) ---
+# Pydantic valida los datos que llegan a la API
+class RutaRequest(BaseModel):
+    """
+    Define la estructura del JSON que espera el endpoint /predict
+    """
+    lat: float
+    lon: float
+
+class RutaResponse(BaseModel):
+    """
+    Define la respuesta de nuestra API
+    """
+    riesgo_predicho: str
+    probabilidad: float
+    categoria_0_prob: float
+    categoria_1_prob: float
+    categoria_2_prob: float
+    lat_encontrada: float
+    lon_encontrada: float
+    comuna: str
+    zona: str
+    ubicacion_desc: str
+    causa_comun: str
+    frecuencia_total: int
+    indice_severidad: int
+
+# --- 2. Cargar el Modelo y los Datos (al iniciar la API) ---
+try:
+    # Ruta al modelo entrenado
+    MODEL_PATH = os.path.join(os.path.dirname(_file_), '..', 'datos', 'motor_riesgo.joblib')
+    # Ruta al CSV maestro (para buscar datos)
+    DATA_PATH = os.path.join(os.path.dirname(_file_), '..', 'datos', 'Siniestros_Maestro_Consolidado_Hackathon.csv')
+    
+    # Cargar el pipeline de ML (Preprocesador + XGBoost)
+    pipeline = joblib.load(MODEL_PATH)
+    print("✅ Modelo 'motor_riesgo.joblib' cargado exitosamente.")
+    
+    # Cargar el CSV maestro
+    df_maestro = pd.read_csv(DATA_PATH)
+    print(f"✅ 'Siniestros_Maestro_Consolidado_Hackathon.csv' cargado ({len(df_maestro)} puntos).")
+    
+except FileNotFoundError:
+    print(f"❌ ERROR CRÍTICO: No se encontró el modelo o el CSV en la carpeta 'datos'.")
+    print(f"  -> Buscando modelo en: {MODEL_PATH}")
+    print(f"  -> Buscando datos en: {DATA_PATH}")
+    pipeline = None
+    df_maestro = None
+
+# --- 3. Inicializar la App FastAPI ---
+app = FastAPI(
+    title="Optimizador de Rutas Terrestres - Hackathon Duoc UC 2025",
+    description="API para el Desafío Smart Cities: Predicción de riesgo vial y RAG."
+)
+
+# --- 4. Definir el Endpoint /predict (Motor de Riesgo) ---
+@app.post("/predict", response_model=RutaResponse)
+async def predict_risk(request: RutaRequest):
+    """
+    Recibe coordenadas (Lat, Lon) y devuelve el perfil de riesgo completo
+    del punto de siniestro más cercano.
+    """
+    if pipeline is None or df_maestro is None:
+        return {"error": "Servidor no inicializado: Modelo o Datos no encontrados."}
+
+    # 4.1. Encontrar el punto más cercano en el CSV
+    # (Un usuario no hará clic en la coordenada exacta)
+    lat = request.lat
+    lon = request.lon
+    
+    # Calcular la distancia euclidiana (rápida y simple)
+    distancias = np.sqrt((df_maestro['Latitude'] - lat)*2 + (df_maestro['Longitude'] - lon)*2)
+    
+    # Encontrar el índice (idx) de la fila con la distancia MÍNIMA
+    idx_mas_cercano = distancias.idxmin()
+    punto_encontrado = df_maestro.loc[idx_mas_cercano]
+
+    # 4.2. Preparar los datos para el modelo
+    # Creamos un DataFrame con los datos de ese punto (el pipeline lo espera)
+    X_pred = pd.DataFrame([punto_encontrado])
+    
+    # 4.3. Ejecutar la predicción
+    # Predecir la clase (0, 1, o 2)
+    pred_clase_num = pipeline.predict(X_pred)[0]
+    # Predecir las probabilidades para todas las clases
+    pred_probabilidades = pipeline.predict_proba(X_pred)[0]
+    
+    # 4.4. Formatear la Respuesta
+    mapa_clases = {0: 'Esporadicos', 1: 'Comunes', 2: 'Muy Frecuentes'}
+    riesgo_predicho_str = mapa_clases.get(pred_clase_num, "Desconocido")
+    
+    # Crear el JSON de respuesta
+    response = RutaResponse(
+        riesgo_predicho=riesgo_predicho_str,
+        probabilidad=pred_probabilidades[pred_clase_num], # Probabilidad de la clase ganadora
+        categoria_0_prob=pred_probabilidades[0], # Prob. Esporadico
+        categoria_1_prob=pred_probabilidades[1], # Prob. Comun
+        categoria_2_prob=pred_probabilidades[2], # Prob. Muy Frecuente
+        lat_encontrada=punto_encontrado['Latitude'],
+        lon_encontrada=punto_encontrado['Longitude'],
+        comuna=punto_encontrado['COMUNA'],
+        zona=punto_encontrado['Zona'],
+        ubicacion_desc=punto_encontrado['Ubicacion_Desc'],
+        causa_comun=punto_encontrado['Causa__CON'],
+        frecuencia_total=int(punto_encontrado['Frecuencia_Total']),
+        indice_severidad=int(punto_encontrado['Indice_Severidad'])
+    )
+    
+    return response
+
+@app.get("/")
+def read_root():
+    return {"status": "Optimizador de Rutas API - v1.0 Activa"}

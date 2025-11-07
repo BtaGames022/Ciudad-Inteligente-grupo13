@@ -1,0 +1,160 @@
+Desafío Ciudades inteligentes
+
+1° Hackathon de Inteligencia Artificial Aplicada Duoc UC 2025
+Duoc UC - Pontificia Universidad Católica de Chile
+
+6-7 de noviembre de 2025
+
+fi Desafío Específico: Ciudades Inteligentes
+Optimizador de rutas terrestes
+
+fi Información del Evento
+Detalle Información
+Institución Duoc UC - Pontificia Universidad Católica de Chile
+Evento 1° Hackathon de Inteligencia Artificial Aplicada Duoc UC
+
+2025
+Modalidad Presencial
+Duración 27 horas
+Fechas 6–7 de noviembre de 2025
+Versión del documento 2025-10-18
+
+ff Nota importante: Este documento es un anexo específico del desafío Ciudades In-
+teligentes y se alinea completamente con las Bases Oficiales del Hackathon de IA de Duoc
+
+UC 2025.
+
+fi Resumen Ejecutivo
+Objetivo: Desarrollar un Optimizador de rutas terrestes que reduzca la probabilidad de accidentes
+en una ciudad basado en datos provios de accidentes.
+Duración: 27 horas (6-7 noviembre 2025)
+Modalidad: Presencial en Duoc UC
+Entregables clave: - fi API FastAPI funcional (/predict, /coach) - fi App demo deployada en Hugging
+Face Spaces - fi Modelo ML con validación temporal y métricas de fairness - fi Sistema RAG con base de
+conocimiento local - fi Reporte técnico y plan PDF descargable
+Puntuación total: 100 puntos distribuidos en 5 categorías principales
+
+1
+
+Duoc UC - Hackathon IA 2025 Desafío Salud NHANES
+
+1) fi Propósito e Impacto
+Objetivo Principal
+Construir un optimizador de rutas terrestres que sugiera cambios en las conexiones terrestres para
+reducir la posibilidad de accidentes usando datos del Observatorio de desarrollo vial, la Comision
+Nacional de Seguridad de Transito y el Observatorio de Ciudades UC y que genere recomendaciones
+en lenguaje natural.
+Impacto Esperado
+• Innovación en conectividad: Desarrollo de soluciones IA híbridas para la distribucion vial.
+• Escalabilidad: Prototipo productizable (API + App) que pueda implementarse en contextos
+reales
+• Formación profesional: Experiencia práctica en IA aplicada al desarrollo vial para estudiantes
+de Duoc UC
+2) fi Problema a Resolver
+Descripción del Reto
+Dado una ubicacion especifica (ciudad, comuna, provincia) el sistema debe:
+Funcionalidades Requeridas:
+1. ff Estimación de riesgo
+• Identificar los puntos comunes de accidentes automovilisticos.
+• Categorizar estas ubicaciones por su ocurrencia (Esporadicos, comunes, muy frecuentes)
+2. ff Explicabilidad
+• Buscar patrones en estas ubicaciones (conexiones en la ciudad, fechas comunes, etc)
+• Debe estar respaldado por datos reales.
+3. ff Plan de acción
+• Sugerir un plan de accion para reducir futuras ocurrencias (crear nueva conexion, reducir fllujo
+de transito, limitar acceso a esa ubicacion).
+• Valorar las diferentes opciones segun su impacto (economico, temporal, habitacional, etc)
+• Describir solucion via LLM’s para mejor entendimiento.
+3) Datos y alcance
+ff Descripción de los datos:
+• Fuente: Observatorio de desarrollo vial, Comision Nacional de Seguridad de Transito, Observatorio
+de Ciudades UC.
+
+• Data pack: El Data Team proveerá CSV con diccionarios de variables y codebooks de refer-
+encia
+
+4) Arquitectura de referencia (IA híbrida)
+Componentes principales:
+1. Motor de riesgo (ML tabular)
+• Baseline: Logistic Regression / XGBoost con validación temporal
+• Métricas a reportar:
+– AUROC (métrica principal)
+2
+
+Duoc UC - Hackathon IA 2025 Desafío Salud NHANES
+
+– AUPRC (precisión-recall)
+– Brier Score (calibración)
+– Fairness (diferencia absoluta de desempeño entre subgrupos por sexo/edad/grupo étnico
+NHANES)
+
+2. Extractor NL→JSON (LLM)
+• Convierte texto libre del formulario en un JSON validado (rangos/unidades)
+• Utiliza function/tool calling y validadores
+3. Coach (LLM + RAG)
+• Genera plan de cambios viales con citas solo desde la mini-KB local (/kb) proporcionada
+(guías validadas)
+• ff Prohibido alucinar fuentes
+4. Guardrails & Safety
+• Umbral de derivación cuando el riesgo supere un valor crítico
+• Lenguaje claro, inclusivo y no-diagnóstico
+• Disclaimers visibles
+5. App & API
+• FastAPI para endpoints /predict y /coach
+• Streamlit/Gradio para la demo interactiva
+• Opción de exportar PDF del plan personalizado
+• Link compartible para resultados
+5) Reglas técnicas obligatorias (anti-fuga y calidad)
+ff Reglas críticas:
+• ff Validación temporal:
+– Obligatoria
+– Queda prohibido usar k-fold aleatorio como única validación
+• ff Calibración:
+– Entregar curva de confiabilidad o Brier Score
+• ff Metricas:
+– Reportar métricas de mejoras segun prediccion (reduccion de accidentes, aumento de flujo, etc)
+– Calcular gap absoluto y justificar mitigaciones (si aplica)
+• ff Reproducibilidad:
+– Incluir requirements.txt o environment.yml
+– Seeds fijados en todo el código
+– Scripts documentados para entrenar/evaluar
+• ff Ética:
+– Disclaimer visible en toda comunicación
+• ff Privacidad:
+– No subir datos sensibles de personas reales al repositorio
+6) Entregables (obligatorios)
+ff Lista de entregables requeridos:
+1. ff Repositorio GitHub
+• Código organizado en carpetas: /src, /api, /app
+• README.md completo con instrucciones de instalación y uso
+2. ff API mínima (FastAPI)
+• POST /predict → devuelve {"score": float, "drivers": [top_features]}
+• POST /coach → devuelve plan textual + citas a la base de conocimiento /kb
+
+3
+
+Duoc UC - Hackathon IA 2025 Desafío Salud NHANES
+
+3. ff App demo interactiva
+• Implementada en Streamlit, Gradio o aplicativo personal.
+• Deploy funcional en Hugging Face Spaces
+4. ff Reporte técnico (2–3 páginas)
+
+• Debe incluir: datos, ingeniería de features, validación, calibración, fairness, guardrails y lim-
+itaciones
+
+5. ff Plan PDF descargable (1–2 páginas)
+• Recomendaciones de cambios viales
+• comparativa entre las diferentes opciones
+6. ff Bitácora de prompts
+• Prompts clave utilizados
+• Políticas de guardrails implementadas
+7. ff Presentación final
+• Duración: 10 minutos de presentación + 5 minutos de Q&A
+• Formato: Pitch con demo en vivo de la aplicación
+• Contenido obligatorio:
+– Problema y motivación (2 min)
+– Solución técnica y arquitectura (3 min)
+– Demo de la aplicación (3 min)
+– Resultados y métricas (1 min)
+– Impacto y próximos pasos (1 min)

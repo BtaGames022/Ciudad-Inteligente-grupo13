@@ -1,0 +1,214 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": []
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": 10,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "lug4SZbKyl_w",
+        "outputId": "b419dc24-a428-41ef-e706-798693abc672"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Instalando gradio y pandas...\n",
+            "Instalación completada.\n"
+          ]
+        }
+      ],
+      "source": [
+        "# --- Celda 1: Instalación de Gradio y Pandas ---\n",
+        "\n",
+        "print(\"Instalando gradio y pandas...\")\n",
+        "!pip install gradio pandas -q\n",
+        "print(\"Instalación completada.\")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# --- Celda 2: Creación del Archivo app_gradio.py (Solución Final) ---\n",
+        "\n",
+        "%%writefile app_gradio.py\n",
+        "import gradio as gr\n",
+        "import pandas as pd\n",
+        "import random\n",
+        "import time\n",
+        "\n",
+        "# --- SIMULACIONES DE LA API ---\n",
+        "def predict_risk(location):\n",
+        "    time.sleep(1)\n",
+        "    score = random.randint(40, 95)\n",
+        "    drivers = [\n",
+        "        f\"Falta de señalización en cruce principal ({random.randint(20, 45)}%)\",\n",
+        "        f\"Alto flujo de vehículos de carga pesada en HORA PUNTA ({random.randint(15, 30)}%)\",\n",
+        "        f\"Baja visibilidad debido a vegetación en Curva Sur ({random.randint(5, 15)}%)\",\n",
+        "    ]\n",
+        "    latitude, longitude = -33.475, -70.587\n",
+        "\n",
+        "    drivers_html = \"<ul>\" + \"\".join([f\"<li>**{d}**</li>\" for d in drivers]) + \"</ul>\"\n",
+        "    map_link = f\"https://www.google.com/maps/search/?api=1&query={latitude},{longitude}\"\n",
+        "    map_html = f'<p><strong>Ubicación central:</strong> <a href=\"{map_link}\" target=\"_blank\">Ver en Google Maps</a></p>'\n",
+        "\n",
+        "    return score, drivers_html, map_html, latitude, longitude\n",
+        "\n",
+        "def generate_coach_plan(score, location):\n",
+        "    time.sleep(2)\n",
+        "\n",
+        "    if score is None or score == 0:\n",
+        "        return \"Primero, calcula el riesgo en la primera pestaña.\", pd.DataFrame({}), \"Error\"\n",
+        "\n",
+        "    if score < 60:\n",
+        "        recommendation = \"Riesgo bajo. Recomendamos monitoreo periódico y mantenimiento preventivo. (Fuente: /kb/MonitoreoBasico)\"\n",
+        "        options_df = pd.DataFrame({\"Opción Sugerida\": [\"N/A\"], \"Impacto Económico\": [\"Bajo\"], \"Impacto Temporal\": [\"Corto\"], \"Impacto Habitacional\": [\"Nulo\"]})\n",
+        "    else:\n",
+        "        recommendation = (\n",
+        "            f\"El riesgo vial de {location} ({score}/100) requiere acción inmediata. \\n\\n\"\n",
+        "            \"**1. Regulación del Flujo:** Limitar el acceso a vehículos de carga pesada en horas pico (Fuente: /kb/GuiaTrafico). \\n\"\n",
+        "            \"**2. Mejoras de Infraestructura:** Crear una rotonda en el cruce principal para reducir la velocidad (Fuente: /kb/AccidentesComunes).\\n\"\n",
+        "        )\n",
+        "        options_df = pd.DataFrame({\n",
+        "            \"Opción Sugerida\": [\"Rotonda en Cruce\", \"Límite de Carga\"],\n",
+        "            \"Impacto Económico\": [\"Alto (5M USD)\", \"Bajo (5K USD)\"],\n",
+        "            \"Impacto Temporal\": [\"9 meses\", \"1 semana\"],\n",
+        "            \"Impacto Habitacional\": [\"Medio\", \"Bajo\"]\n",
+        "        })\n",
+        "\n",
+        "    pdf_content = f\"Plan de Optimización Vial para {location} (Riesgo: {score}/100). Incluye valoración de impacto y citas a la KB.\"\n",
+        "\n",
+        "    return recommendation, options_df, pdf_content\n",
+        "\n",
+        "# --- ESTRUCTURA DE LA APLICACIÓN (Gradio Blocks) ---\n",
+        "\n",
+        "with gr.Blocks(title=\"Smart Route Optimizer\") as demo:\n",
+        "    gr.Markdown(\"# 🚦 Smart Route Optimizer: Optimizador de Rutas Terrestres\")\n",
+        "    gr.Markdown(\"Este es el Agente de IA Híbrida desarrollado para el Desafío Ciudades Inteligentes Duoc UC 2025.\")\n",
+        "\n",
+        "    gr.Markdown(\"⚠️ **Disclaimer Ético:** Este sistema es un prototipo basado en IA y no sustituye la evaluación profesional de ingeniería vial.\")\n",
+        "\n",
+        "    score_state = gr.State(0)\n",
+        "    location_state = gr.State(\"Macul, Santiago\")\n",
+        "    pdf_content_state = gr.State(\"Presione 'Generar Plan' para crear el PDF.\")\n",
+        "\n",
+        "    # --- PESTAÑA 1: ANÁLISIS DE RIESGO ---\n",
+        "    with gr.Tab(label=\"1. 📈 Análisis de Riesgo (Motor ML)\"):\n",
+        "        gr.Markdown(\"### Ingreso de Datos y Evaluación de Riesgo\")\n",
+        "\n",
+        "        location_input = gr.Textbox(label=\"📍 Ubicación a Analizar:\", value=\"Macul, Santiago\")\n",
+        "        analyze_btn = gr.Button(\"Calcular Riesgo Vial\", variant=\"primary\")\n",
+        "\n",
+        "        score_output = gr.Number(label=\"Score de Riesgo Vial (0-100)\", scale=0)\n",
+        "        drivers_output = gr.Markdown(label=\"🔍 Drivers Locales (Explicabilidad)\")\n",
+        "        map_output = gr.HTML(label=\"🗺️ Mapa y Puntos de Calor (Visualización Geográfica)\")\n",
+        "\n",
+        "        analyze_btn.click(\n",
+        "            fn=lambda loc: predict_risk(loc) + (loc, ),\n",
+        "            inputs=[location_input],\n",
+        "            outputs=[score_output, drivers_output, map_output, score_state, location_state]\n",
+        "        )\n",
+        "\n",
+        "    # --- PESTAÑA 2: COACH IA Y PLAN DE ACCIÓN ---\n",
+        "    with gr.Tab(label=\"2. 🧠 Coach IA y Plan de Acción (RAG)\"):\n",
+        "        gr.Markdown(\"### Plan de Acción y Sugerencias del Coach IA\")\n",
+        "\n",
+        "        plan_btn = gr.Button(\"Generar Plan de Optimización (Coach RAG)\", variant=\"secondary\")\n",
+        "\n",
+        "        recommendation_output = gr.Textbox(label=\"📋 Recomendaciones Viales (LLM + RAG con Citas)\", lines=7)\n",
+        "        options_df_output = gr.Dataframe(label=\"📊 Comparativa de Opciones y Valoración de Impacto\")\n",
+        "\n",
+        "        plan_btn.click(\n",
+        "            fn=generate_coach_plan,\n",
+        "            inputs=[score_state, location_state],\n",
+        "            outputs=[recommendation_output, options_df_output, pdf_content_state]\n",
+        "        )\n",
+        "\n",
+        "        gr.Info(\"💡 Aviso: El Coach DEBE usar solo la mini-base de conocimiento local (/kb) y todas las recomendaciones deben estar respaldadas por fuentes verificables.\")\n",
+        "\n",
+        "    # --- PESTAÑA 3: EXPORTAR Y COMPARTIR (Entregables) ---\n",
+        "    with gr.Tab(label=\"3. 💾 Exportar y Compartir\"):\n",
+        "        gr.Markdown(\"### Descargar Plan y Enlace Compartible\")\n",
+        "\n",
+        "        gr.Textbox(label=\"Contenido del Plan PDF Simulado:\", value=\"Presione 'Generar Plan' en la pestaña anterior para crear el contenido.\", lines=5)\n",
+        "\n",
+        "        gr.Markdown(\"---\")\n",
+        "        gr.Markdown(\"### Enlace Compartible (Deploy funcional)\")\n",
+        "        # ⚠️ SOLUCIÓN FINAL: Eliminamos el parámetro 'language'\n",
+        "        gr.Code(value=\"https://colab.research.google.com/drive/TU_NOTEBOOK_ID#share\")\n",
+        "\n",
+        "        gr.Markdown(\"✅ **Próximos Pasos:** Las recomendaciones están listas para la evaluación del impacto económico.\")\n",
+        "\n",
+        "\n",
+        "# Lanzar la demo en modo Colab\n",
+        "if __name__ == \"__main__\":\n",
+        "    demo.launch(share=True, debug=False)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "sapZ8VE3zK8g",
+        "outputId": "3b79494a-5274-44ef-e6cf-0404ec0cd491"
+      },
+      "execution_count": 13,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Overwriting app_gradio.py\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# --- Celda 3: Ejecutar Gradio ---\n",
+        "\n",
+        "# Este comando ejecuta el script de python que contiene la demo de Gradio\n",
+        "!python app_gradio.py"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "Y0q-ilvvyqUf",
+        "outputId": "f354bdad-bd6b-46df-ec42-a055d9c74523"
+      },
+      "execution_count": 14,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "💡 Aviso: El Coach DEBE usar solo la mini-base de conocimiento local (/kb) y todas las recomendaciones deben estar respaldadas por fuentes verificables.\n",
+            "* Running on local URL:  http://127.0.0.1:7860\n",
+            "* Running on public URL: https://9da379c09c649a82c7.gradio.live\n",
+            "\n",
+            "This share link expires in 1 week. For free permanent hosting and GPU upgrades, run `gradio deploy` from the terminal in the working directory to deploy to Hugging Face Spaces (https://huggingface.co/spaces)\n",
+            "Keyboard interruption in main thread... closing server.\n",
+            "Killing tunnel 127.0.0.1:7860 <> https://9da379c09c649a82c7.gradio.live\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
